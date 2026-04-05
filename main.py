@@ -12,10 +12,12 @@ def connect_wifi():
     connection.active(True)
     connection.connect(ssid, wifi_password)
     print("Pripájanie...")
+    print()
 
     for _ in range(60):
         if connection.isconnected():
             print("WiFi pripojená.")
+            print()
             return True
         utime.sleep(1)
     print("Pripojenie zlyhalo!")
@@ -26,16 +28,17 @@ topic_subscription = b"senzory"
 def connect_mqtt():
     client = MQTTClient(
         client_id = "pico2w",
-        server = "29596620e3ee4dc5b389c21d08b887bc.s1.eu.hivemq.cloud",
+        server = mqtt_host,
         port = 8883,
         user = mqtt_user,
         password = mqtt_password,
         ssl = True,
-        ssl_params = {"server_hostname": "29596620e3ee4dc5b389c21d08b887bc.s1.eu.hivemq.cloud"}
+        ssl_params = {"server_hostname": mqtt_host}
     )
 
     client.connect()
     print("MQTT pripojené.")
+    print()
     return client
 
 #   senzory
@@ -103,17 +106,18 @@ while True:
     t_sht, h_sht = read_sht()
 
     if t_htu is not None and t_aht is not None and t_sht is not None:
-        print(f"HTU21D: {t_htu:>6.2f} °C | {h_htu:>6.2f} %")
-        print(f"AHT20:  {t_aht:>6.2f} °C | {h_aht:>6.2f} %")
-        print(f"SHT40:  {t_sht:>6.2f} °C | {h_sht:>6.2f} %")
+        print(f"HTU: {t_htu:>6.2f} °C | {h_htu:>6.2f} %")
+        print(f"AHT:  {t_aht:>6.2f} °C | {h_aht:>6.2f} %")
+        print(f"SHT:  {t_sht:>6.2f} °C | {h_sht:>6.2f} %")
+        print()
     else:
-        print("Chyba komunikacie so senzormi.")
+        print("Chyba komunikacie.")
 
     if t_htu and t_aht and t_sht:
         measurements = json.dumps({
-            "HTU21D": {"teplota": round(t_htu, 2), "vlhkost": round(h_htu, 2)},
-            "AHT20":  {"teplota": round(t_aht, 2), "vlhkost": round(h_aht, 2)},
-            "SHT40":  {"teplota": round(t_sht, 2), "vlhkost": round(h_sht, 2)}
+            "HTU": {"teplota": round(t_htu, 2), "vlhkost": round(h_htu, 2)},
+            "AHT":  {"teplota": round(t_aht, 2), "vlhkost": round(h_aht, 2)},
+            "SHT":  {"teplota": round(t_sht, 2), "vlhkost": round(h_sht, 2)}
         })
         client.publish(topic_subscription, measurements)
 
