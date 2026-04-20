@@ -1,9 +1,9 @@
 import machine
 import utime
 import network
-from umqtt.simple import MQTTClient
 import ssl
 import json
+from umqtt.simple import MQTTClient
 from personal import *    
 
 
@@ -13,7 +13,6 @@ def connect_wifi():
     connection.connect(ssid, wifi_password)
     print("Pripájanie...")
     print()
-
     for _ in range(60):
         if connection.isconnected():
             print("WiFi pripojená.")
@@ -23,10 +22,10 @@ def connect_wifi():
     print("Pripojenie zlyhalo!")
     return False
 
-topic_subscription = b"senzory"
+topic = b"senzory"
 
 def connect_mqtt():
-    client = MQTTClient(
+    broker = MQTTClient(
         client_id = "pico2w",
         server = mqtt_host,
         port = 8883,
@@ -35,90 +34,74 @@ def connect_mqtt():
         ssl = True,
         ssl_params = {"server_hostname": mqtt_host}
     )
-
-    client.connect()
+    broker.connect()
     print("MQTT pripojené.")
     print()
-    return client
+    return broker
 
-#   senzory
+i2c = machine.I2C(0, scl=machine.Pin(1), sda=machine.Pin(0), freq=100000) # pinout
 
-i2c = machine.I2C(0, scl=machine.Pin(1), sda=machine.Pin(0), freq=100000)
-
-htu_address = 0x40
-aht_address = 0x38
 sht_address = 0x44
+veml_address = 0x10
+ltr_address = 0x53
 
-def read_htu():
+# temperature and humidity sensor SHT40
+def read_sht40():
     try:
-        i2c.writeto(htu_address, b'\xFE')
-        utime.sleep_ms(15)
-        i2c.writeto(htu_address, b'\xF3')
-        utime.sleep_ms(50)
-        data_temp = i2c.readfrom(htu_address, 3)
-        raw_temp = ((data_temp[0] << 8) | data_temp[1]) & 0xFFFC
-        temperature = -46.85 + (175.72 * raw_temp / 65536)
-        i2c.writeto(htu_address, b'\xF5')
-        utime.sleep_ms(16)
-        data_hum = i2c.readfrom(htu_address, 3)
-        raw_hum = ((data_hum[0] << 8) | data_hum[1]) & 0xFFFC
-        humidity = -6 + (125 * raw_hum / 65536)
-        return temperature, humidity
-    except:
-        return None, None
-
-def read_aht():
-    try:
-        i2c.writeto(aht_address, b'\xAC\x33\x00')
-        utime.sleep_ms(80)
-        data = i2c.readfrom(aht_address, 6)
-        if (data[0] & 0x80):
-            return None, None
-        raw_hum = ((data[1] << 12) | (data[2] << 4) | (data[3] >> 4))
-        humidity = (raw_hum / 1048576) * 100
-        raw_temp = ((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]
-        temperature = (raw_temp / 1048576) * 200 - 50
-        return temperature, humidity
-    except:
-        return None, None
-
-def read_sht():
-    try:
-        i2c.writeto(sht_address, b'\xFD')
+        i2c.writeto(sht_address, bytes([0xFD]))
         utime.sleep_ms(10)
         data = i2c.readfrom(sht_address, 6)
-        raw_temp = (data[0] << 8) | data[1]
-        temperature = -45 + (175 * raw_temp / 65535)
-        raw_hum = (data[3] << 8) | data[4]
-        humidity = -6 + (125 * raw_hum / 65535)
-        return temperature, max(0, min(100, humidity))
+        raw_data_temperature = (data[0] << 8) | data[1]
+        temperature = float(-45 + 175 * raw_data_temperature / 65535)
+        raw_data_humidity = (data[3] << 8) | data[4]
+        humidity = float(-6 + 125 * raw_data_humidity / 65535)
+        return round(temperature, 2), round(humidity, 2)
     except:
         return None, None
 
-connect_wifi()
-client = connect_mqtt()
+# light intensity sensor VEML7700
+def read_veml7700():
+    try:
+        i2c.writeto_mem(veml_address, 0x00, bytes([0x00, 0x00]))
+        utime.sleep_ms(200)
+        data = i2c.readfrom_mem(veml_address, 0x04, 2)
+        raw_data = data[0] | (data[1] << 8)
+        light_intensity = float(raw_data * 0.0576)
+        return round(light_intensity, 2)
+    except:
+        return None
 
-#   meranie
+# uv sensor LTR390-UV
+def read_ltr390():
+    try:
+        i2c.writeto(ltr_address, bytes([0x00, 0x0A]))
+        utime.sleep_ms(200)
+        i2c.writeto(ltr_address, bytes([0x10]))
+        data = i2c.readfrom(ltr_address, 3)
+        raw_data = data[0] | (data[1] << 8) | (data[2] << 16)
+        uv_index = float(raw_data / 2300)
+        return round(uv_index, 2)
+    except:
+        return None
+
+connect_wifi()
+broker = connect_mqtt()
 
 while True:
-    t_htu, h_htu = read_htu()
-    t_aht, h_aht = read_aht()
-    t_sht, h_sht = read_sht()
+    temperature, humidity = read_sht40()
+    light_intensity = read_veml7700()
+    uv_index = read_ltr390()
 
-    if t_htu is not None and t_aht is not None and t_sht is not None:
-        print(f"HTU: {t_htu:>6.2f} °C | {h_htu:>6.2f} %")
-        print(f"AHT:  {t_aht:>6.2f} °C | {h_aht:>6.2f} %")
-        print(f"SHT:  {t_sht:>6.2f} °C | {h_sht:>6.2f} %")
-        print()
-    else:
-        print("Chyba komunikacie.")
+    print(f"SHT40:   {temperature} °C | {humidity} %")
+    print(f"VEML7700: {light_intensity} lux")
+    print(f"LTR390:   {uv_index} UV index")
+    print()
 
-    if t_htu and t_aht and t_sht:
+    if temperature is not None and humidity is not None and light_intensity is not None and uv_index is not None:
         measurements = json.dumps({
-            "HTU": {"teplota": round(t_htu, 2), "vlhkost": round(h_htu, 2)},
-            "AHT":  {"teplota": round(t_aht, 2), "vlhkost": round(h_aht, 2)},
-            "SHT":  {"teplota": round(t_sht, 2), "vlhkost": round(h_sht, 2)}
+            "SHT40":   {"teplota": temperature, "vlhkost": humidity},
+            "VEML7700": {"intenzita_svetla": light_intensity},
+            "LTR390":   {"uv_index": uv_index}
         })
-        client.publish(topic_subscription, measurements)
-
+        broker.publish(topic, measurements)
     utime.sleep(10)
