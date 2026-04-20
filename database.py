@@ -29,7 +29,7 @@ def zaznam(client, userdata, msg):
 # MQTT connection
 broker = mqtt.Client()
 broker.username_pw_set(mqtt_user, mqtt_password)
-broker.tls_set()                                   # TLS encryption
+broker.tls_set()                                 
 broker.on_message = zaznam
 broker.connect(mqtt_host, 8883)
 broker.subscribe(topic)
