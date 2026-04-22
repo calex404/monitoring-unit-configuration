@@ -8,19 +8,20 @@ The goal was to create a compact hardware unit that measures temperature, humidi
 ## Toolbox
 **Hardware:** Raspberry Pico 2 W, SHT40, VEML7700, LTR390-UV
 **Communication:** Wi-Fi, HiveMQ Cloud
-**Communication:** InfluxDB
+**Database:** InfluxDB
 **Firmware:** MicroPython
 
 ## Contents
 `main.py` – firmware running on microcontroler that reads sensors via I2C, connects to Wi-Fi and publishes measurements to MQTT broker
 `database.py` – bridge running on host PC that subscribes to MQTT topic and writes data to InfluxDB
+`dashboard.html` – ...
 `presentation.pdf` – ...
 
 ## Run project
 
 1. Flash `main.py`to Raspberry Pi Pico 2W.
-2. Run`main.py`and`database.py`on host PC.
-3. Open Grafana dashboard in browser.
+2. Run`main.py`and`database.py`in a terminal on host PC.
+3. Open ...
 ---
 
 **Name:** (future Bc.) Val (calex404)  
