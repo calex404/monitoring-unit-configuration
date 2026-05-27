@@ -9,10 +9,10 @@ topic = "senzory"
 bucket = "senzory"
 
 # InfluxDB connection
-influx = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org)
-api = influx.write_api(write_options=SYNCHRONOUS)
+influx = InfluxDBClient(url = influx_url, token = influx_token, org = influx_org)
+api = influx.write_api(write_options = SYNCHRONOUS)
 
-def zaznam(client, userdata, msg):
+def zaznam(msg):
     try:
         data = json.loads(msg.payload.decode())
         for sensor, measurement in data.items():
@@ -20,7 +20,7 @@ def zaznam(client, userdata, msg):
                 .tag("senzor", sensor)
             for key, value in measurement.items():
                 point = point.field(key, value)
-            api.write(bucket=bucket, org=influx_org, record=point)
+            api.write(bucket = bucket, org = influx_org, record = point)
             print(f"Záznam o: {sensor} uložený.")
         print()
     except Exception as e:

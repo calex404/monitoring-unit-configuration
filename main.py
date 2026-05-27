@@ -1,12 +1,11 @@
 import machine
 import utime
 import network
-import ssl
 import json
 from umqtt.simple import MQTTClient
 from personal import *
 
-i2c = machine.I2C(0, scl=machine.Pin(1), sda=machine.Pin(0), freq=100000) 
+i2c = machine.I2C(0, scl = machine.Pin(1), sda = machine.Pin(0), freq = 100000)
 
 sht_address = 0x44
 veml_address = 0x10
@@ -50,6 +49,7 @@ def connect_mqtt():
     print()
     return broker
 
+# functions for reading sensors 
 def read_sht40():
     try:
         i2c.writeto(sht_address, bytes([0xFD]))
@@ -94,7 +94,7 @@ while True:
     uv_index = read_ltr390()
 
     print(f"SHT40:    {temperature} °C | {humidity} %")
-    print(f"VEML7700: {light_intensity} lux")
+    print(f"VEML7700: {light_intensity} lx")
     print(f"LTR390:   {uv_index} UV index")
     print()
     
@@ -112,5 +112,5 @@ while True:
             broker.disconnect()
             disconnect_wifi(connection)
 
-    print("Cakam 30 sekund...")
+    print("30 sekúnd...")
     machine.lightsleep(30000)
